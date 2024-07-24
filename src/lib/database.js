@@ -1,5 +1,17 @@
 const sqlite3 = require("sqlite3").verbose();
-const db = new sqlite3.Database("./sitemaps.db");
+const path = require("path");
+
+// Use an environment variable to define the database path
+const dbPath =
+	process.env.DATABASE_PATH || path.resolve(__dirname, "../../sitemaps.db");
+
+const db = new sqlite3.Database(dbPath, (err) => {
+	if (err) {
+		console.error("Could not open database", err.message);
+	} else {
+		console.log("Connected to database");
+	}
+});
 
 db.serialize(() => {
 	db.run(
