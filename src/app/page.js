@@ -19,6 +19,7 @@ export default function Home() {
 		key: null,
 		direction: null,
 	});
+	const [statusFilter, setStatusFilter] = useState("all");
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
@@ -102,15 +103,20 @@ export default function Home() {
 
 	useEffect(() => {
 		setFilteredUrls(
-			urls.filter(
-				(urlObj) =>
+			urls.filter((urlObj) => {
+				const matchesSearchQuery =
 					urlObj.page_title &&
 					urlObj.page_title
 						.toLowerCase()
-						.includes(searchQuery.toLowerCase())
-			)
+						.includes(searchQuery.toLowerCase());
+				const matchesStatusFilter =
+					statusFilter === "all" ||
+					(statusFilter === "indexed" && urlObj.index_status) ||
+					(statusFilter === "not_indexed" && !urlObj.index_status);
+				return matchesSearchQuery && matchesStatusFilter;
+			})
 		);
-	}, [searchQuery, urls]);
+	}, [searchQuery, statusFilter, urls, rowsPerPage]);
 
 	const indexOfLastRow = currentPage * rowsPerPage;
 	const indexOfFirstRow = indexOfLastRow - rowsPerPage;
@@ -145,7 +151,6 @@ export default function Home() {
 		}
 		return sortConfig.key === name ? sortConfig.direction : undefined;
 	};
-
 	return (
 		<div className='flex flex-col min-h-screen bg-white text-gray-800'>
 			<Header />
@@ -190,41 +195,63 @@ export default function Home() {
 							<div className='p-1.5 min-w-full inline-block align-middle'>
 								<div className='border rounded-lg divide-y divide-gray-200'>
 									<div className='py-3 px-4'>
-										<div className='relative max-w-xs'>
-											<label className='sr-only'>
-												Search
-											</label>
-											<input
-												type='text'
-												value={searchQuery}
-												onChange={(e) =>
-													setSearchQuery(
-														e.target.value
-													)
-												}
-												className='py-2 px-3 ps-9 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none'
-												placeholder='Search for items'
-											/>
-											<div className='absolute inset-y-0 start-0 flex items-center pointer-events-none ps-3'>
-												<svg
-													className='size-4 text-gray-400'
-													xmlns='http://www.w3.org/2000/svg'
-													width='24'
-													height='24'
-													viewBox='0 0 24 24'
-													fill='none'
-													stroke='currentColor'
-													strokeWidth='2'
-													strokeLinecap='round'
-													strokeLinejoin='round'
+										<div className='flex justify-between items-center'>
+											<div className='relative max-w-xs'>
+												<label className='sr-only'>
+													Search
+												</label>
+												<input
+													type='text'
+													value={searchQuery}
+													onChange={(e) =>
+														setSearchQuery(
+															e.target.value
+														)
+													}
+													className='py-2 px-3 ps-9 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none'
+													placeholder='Search for items'
+												/>
+												<div className='absolute inset-y-0 start-0 flex items-center pointer-events-none ps-3'>
+													<svg
+														className='size-4 text-gray-400'
+														xmlns='http://www.w3.org/2000/svg'
+														width='24'
+														height='24'
+														viewBox='0 0 24 24'
+														fill='none'
+														stroke='currentColor'
+														strokeWidth='2'
+														strokeLinecap='round'
+														strokeLinejoin='round'
+													>
+														<circle
+															cx='11'
+															cy='11'
+															r='8'
+														></circle>
+														<path d='m21 21-4.3-4.3'></path>
+													</svg>
+												</div>
+											</div>
+											<div>
+												<select
+													onChange={(e) =>
+														setStatusFilter(
+															e.target.value
+														)
+													}
+													className='py-2 px-3 border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none'
 												>
-													<circle
-														cx='11'
-														cy='11'
-														r='8'
-													></circle>
-													<path d='m21 21-4.3-4.3'></path>
-												</svg>
+													<option value='all'>
+														Show All
+													</option>
+													<option value='indexed'>
+														Indexed
+													</option>
+													<option value='not_indexed'>
+														Not Indexed
+													</option>
+												</select>
 											</div>
 										</div>
 									</div>
@@ -395,63 +422,97 @@ export default function Home() {
 											</tbody>
 										</table>
 									</div>
-									<div className='py-1 px-4'>
-										<nav
-											className='flex items-center space-x-1'
-											aria-label='Pagination'
-										>
-											<button
-												type='button'
-												onClick={() =>
-													paginate(currentPage - 1)
-												}
-												className='p-2.5 min-w-[40px] inline-flex justify-center items-center gap-x-2 text-sm rounded-full text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none'
-												disabled={currentPage === 1}
-											>
-												<span aria-hidden='true'>
-													«
-												</span>
-												<span className='sr-only'>
-													Previous
-												</span>
-											</button>
-											{[...Array(totalPages).keys()].map(
-												(number) => (
+
+									<div className='py-1 px-4 flex justify-between items-center'>
+										<div className='flex-grow'>
+											{filteredUrls.length >
+												rowsPerPage && (
+												<nav
+													className='flex items-center space-x-1'
+													aria-label='Pagination'
+												>
 													<button
-														key={number}
 														type='button'
 														onClick={() =>
-															paginate(number + 1)
+															paginate(
+																currentPage - 1
+															)
 														}
-														className={`min-w-[40px] flex justify-center items-center py-2.5 text-sm rounded-full ${
-															currentPage ===
-															number + 1
-																? "bg-blue-600 text-white"
-																: "text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100"
-														}`}
+														className='p-2.5 min-w-[40px] inline-flex justify-center items-center gap-x-2 text-sm rounded-full text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none'
+														disabled={
+															currentPage === 1
+														}
 													>
-														{number + 1}
+														<span aria-hidden='true'>
+															«
+														</span>
+														<span className='sr-only'>
+															Previous
+														</span>
 													</button>
-												)
+													{[
+														...Array(
+															totalPages
+														).keys(),
+													].map((number) => (
+														<button
+															key={number}
+															type='button'
+															onClick={() =>
+																paginate(
+																	number + 1
+																)
+															}
+															className={`min-w-[40px] flex justify-center items-center py-2.5 text-sm rounded-full ${
+																currentPage ===
+																number + 1
+																	? "bg-blue-600 text-white"
+																	: "text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100"
+															}`}
+														>
+															{number + 1}
+														</button>
+													))}
+													<button
+														type='button'
+														onClick={() =>
+															paginate(
+																currentPage + 1
+															)
+														}
+														className='p-2.5 min-w-[40px] inline-flex justify-center items-center gap-x-2 text-sm rounded-full text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none'
+														disabled={
+															currentPage ===
+															totalPages
+														}
+													>
+														<span className='sr-only'>
+															Next
+														</span>
+														<span aria-hidden='true'>
+															»
+														</span>
+													</button>
+												</nav>
 											)}
-											<button
-												type='button'
-												onClick={() =>
-													paginate(currentPage + 1)
+										</div>
+										<div>
+											<select
+												value={rowsPerPage}
+												onChange={(e) =>
+													setRowsPerPage(
+														parseInt(e.target.value)
+													)
 												}
-												className='p-2.5 min-w-[40px] inline-flex justify-center items-center gap-x-2 text-sm rounded-full text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none'
-												disabled={
-													currentPage === totalPages
-												}
+												className='py-2 px-3 border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none'
 											>
-												<span className='sr-only'>
-													Next
-												</span>
-												<span aria-hidden='true'>
-													»
-												</span>
-											</button>
-										</nav>
+												<option value={12}>12</option>
+												<option value={25}>25</option>
+												<option value={50}>50</option>
+												<option value={100}>100</option>
+												<option value={200}>200</option>
+											</select>
+										</div>
 									</div>
 								</div>
 							</div>
