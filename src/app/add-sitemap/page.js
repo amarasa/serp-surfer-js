@@ -46,7 +46,7 @@ export default function AddSitemap() {
 					/>
 					<button
 						type='submit'
-						className='bg-blue-500 text-white p-2 rounded w-full mb-4'
+						className='bg-gray-700 text-white p-2 rounded w-full mb-4 hover:bg-gray-600 ease-in-out duration-300'
 					>
 						Add Sitemap
 					</button>

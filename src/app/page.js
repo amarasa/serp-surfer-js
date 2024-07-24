@@ -135,7 +135,7 @@ export default function Home() {
 					/>
 					<button
 						type='submit'
-						className='bg-blue-500 text-white p-2 rounded w-full mb-4'
+						className='bg-gray-700 text-white p-2 rounded w-full mb-4 hover:bg-gray-600 ease-in-out duration-300'
 					>
 						{checking ? "Checking..." : "Check Sitemap"}
 					</button>
@@ -307,8 +307,16 @@ export default function Home() {
 																		indexOfFirstRow}
 																</td>
 																<td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
-																	{urlObj.page_title ||
-																		urlObj.page_url}
+																	<p>
+																		{
+																			urlObj.page_title
+																		}
+																	</p>
+																	<p className='text-[10px] text-gray-500'>
+																		{
+																			urlObj.page_url
+																		}
+																	</p>
 																</td>
 																<td className='px-6 py-4 whitespace-nowrap text-sm text-center flex space-x-2'>
 																	<a
@@ -424,10 +432,10 @@ export default function Home() {
 																			1
 																	)
 																}
-																className={`min-w-[40px] flex justify-center items-center py-2.5 text-sm rounded-full ${
+																className={`min-w-[40px] flex justify-center items-center py-2.5 text-sm rounded-md ${
 																	currentPage ===
 																	number + 1
-																		? "bg-blue-600 text-white"
+																		? "bg-gray-600 text-white"
 																		: "text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100"
 																}`}
 															>
