@@ -3,7 +3,8 @@ const path = require("path");
 
 // Use an environment variable to define the database path
 const dbPath =
-	process.env.DATABASE_PATH || path.resolve(__dirname, "../../sitemaps.db");
+	process.env.DATABASE_PATH ||
+	path.resolve(__dirname, "../../tmp/sitemaps.db");
 
 const db = new sqlite3.Database(dbPath, (err) => {
 	if (err) {
