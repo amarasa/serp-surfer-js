@@ -1,28 +1,19 @@
-const sqlite3 = require("sqlite3").verbose();
-const axios = require("axios");
-const cheerio = require("cheerio");
-const path = require("path");
-const dbPath =
-	process.env.DATABASE_PATH || path.resolve(__dirname, "../sitemaps.db");
-const db = new sqlite3.Database(dbPath, (err) => {
-	if (err) {
-		console.error("Could not open database", err.message);
-	} else {
-		console.log("Connected to database");
-	}
-});
+// /pages/api/process-queue.js
+import db from "../../lib/database";
+import axios from "axios";
+import cheerio from "cheerio";
 
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const processQueue = async () => {
-	while (true) {
+const processQueue = async (req, res) => {
+	try {
 		db.get(
 			`SELECT * FROM queued_urls ORDER BY id ASC LIMIT 1`,
 			async (err, row) => {
 				if (err) {
 					console.error("Database Error:", err.message);
+					return res.status(500).json({ error: err.message });
 				} else if (!row) {
 					console.log("Queue is empty. Waiting for new URLs...");
+					return res.status(200).json({ message: "Queue is empty" });
 				} else {
 					const { id, url, sitemap_url } = row;
 					console.log(`Processing URL: ${url}`);
@@ -42,7 +33,6 @@ const processQueue = async () => {
 						const searchResults = $("#search .g");
 						const isIndexed = searchResults.length > 0;
 
-						// Fetch the page title regardless of the index status
 						const pageResponse = await axios.get(url, {
 							headers: {
 								"User-Agent":
@@ -54,13 +44,13 @@ const processQueue = async () => {
 
 						db.run(
 							`
-                        INSERT INTO sitemaps (sitemap_url, page_title, page_url, index_status, last_scan)
-                        VALUES (?, ?, ?, ?, datetime('now', 'utc'))
-                        ON CONFLICT(page_url) DO UPDATE SET
-                            index_status=excluded.index_status,
-                            last_scan=datetime('now', 'utc'),
-                            page_title=excluded.page_title
-                        `,
+            INSERT INTO sitemaps (sitemap_url, page_title, page_url, index_status, last_scan)
+            VALUES (?, ?, ?, ?, datetime('now', 'utc'))
+            ON CONFLICT(page_url) DO UPDATE SET
+                index_status=excluded.index_status,
+                last_scan=datetime('now', 'utc'),
+                page_title=excluded.page_title
+            `,
 							[sitemap_url, title, url, isIndexed ? 1 : 0],
 							(err) => {
 								if (err) {
@@ -68,6 +58,9 @@ const processQueue = async () => {
 										"Database Error:",
 										err.message
 									);
+									return res
+										.status(500)
+										.json({ error: err.message });
 								}
 							}
 						);
@@ -81,22 +74,32 @@ const processQueue = async () => {
 										"Database Error:",
 										err.message
 									);
+									return res
+										.status(500)
+										.json({ error: err.message });
 								} else {
 									console.log(
 										`Processed and removed URL from queue: ${url}`
 									);
+									return res
+										.status(200)
+										.json({
+											message: `Processed URL: ${url}`,
+										});
 								}
 							}
 						);
 					} catch (error) {
 						console.error("Error processing URL:", error.message);
+						return res.status(500).json({ error: error.message });
 					}
 				}
 			}
 		);
-
-		await delay(60 * 1000); // Wait for 1 minute before checking again
+	} catch (error) {
+		console.error("Error processing queue:", error.message);
+		return res.status(500).json({ error: error.message });
 	}
 };
 
-processQueue();
+export default processQueue;
