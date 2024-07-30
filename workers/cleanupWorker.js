@@ -1,50 +1,50 @@
-const sqlite3 = require("sqlite3").verbose();
-const fs = require("fs");
-const path = require("path");
-const dbPath = process.env.DATABASE_PATH || path.resolve("/tmp", "sitemaps.db");
-
-// Ensure the /tmp directory exists and is writable
-if (!fs.existsSync("/tmp")) {
-	fs.mkdirSync("/tmp");
-}
-
-// Create the database file if it doesn't exist
-if (!fs.existsSync(dbPath)) {
-	fs.writeFileSync(dbPath, "");
-}
-
-const db = new sqlite3.Database(dbPath, (err) => {
-	if (err) {
-		console.error("Could not open database", err.message);
-	} else {
-		console.log("Connected to database at", dbPath);
-	}
-});
-
+const mysql = require("mysql2");
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+require("dotenv").config(); // Load environment variables from .env file
+
+// Create a connection pool using environment variables
+const pool = mysql
+	.createPool({
+		host: process.env.DB_HOST,
+		user: process.env.DB_USER,
+		password: process.env.DB_PASSWORD,
+		database: process.env.DB_NAME,
+		waitForConnections: true,
+		connectionLimit: process.env.DB_CONNECTION_LIMIT || 10,
+		queueLimit: 0,
+	})
+	.promise();
+
+module.exports = pool;
 
 const cleanupDatabase = async () => {
 	while (true) {
-		const seventyTwoHoursAgo = new Date(
-			Date.now() - 72 * 60 * 60 * 1000
-		).toISOString();
+		try {
+			const seventyTwoHoursAgo = new Date(
+				Date.now() - 72 * 60 * 60 * 1000
+			)
+				.toISOString()
+				.slice(0, 19)
+				.replace("T", " "); // Format for MySQL datetime
 
-		db.run(
-			`DELETE FROM sitemaps WHERE last_scan < ?`,
-			[seventyTwoHoursAgo],
-			function (err) {
-				if (err) {
-					console.error("Error cleaning up database:", err.message);
-				} else {
-					console.log(
-						`Deleted ${this.changes} entries older than 72 hours.`
-					);
-				}
-			}
-		);
+			// Delete entries older than 72 hours
+			const [result] = await pool.execute(
+				`DELETE FROM sitemaps WHERE last_scan < ?`,
+				[seventyTwoHoursAgo]
+			);
+
+			console.log(
+				`Deleted ${result.affectedRows} entries older than 72 hours.`
+			);
+		} catch (err) {
+			console.error("Error cleaning up database:", err.message);
+		}
 
 		await delay(60 * 60 * 1000); // Run cleanup once every hour
 	}
 };
 
-cleanupDatabase();
+cleanupDatabase().catch((err) => {
+	console.error("Cleanup process encountered an error:", err.message);
+	process.exit(1); // Exit the process in case of an unhandled error
+});

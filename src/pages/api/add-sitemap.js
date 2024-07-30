@@ -18,54 +18,27 @@ export default async function handler(req, res) {
 			let processedUrls = 0;
 
 			for (const url of urls) {
-				// Check if URL exists in sitemaps.db
-				const sitemapExists = await new Promise((resolve, reject) => {
-					db.get(
-						`SELECT * FROM sitemaps WHERE sitemap_url = ? AND page_url = ?`,
-						[sitemapUrl, url],
-						(err, row) => {
-							if (err) {
-								reject(err);
-							} else {
-								resolve(row);
-							}
-						}
-					);
-				});
+				// Check if URL exists in sitemaps table
+				const [sitemapExists] = await db.execute(
+					`SELECT * FROM sitemaps WHERE sitemap_url = ? AND page_url = ?`,
+					[sitemapUrl, url]
+				);
 
-				if (sitemapExists) {
+				if (sitemapExists.length > 0) {
 					processedUrls++;
 				} else {
 					// Check if URL exists in queued_urls table
-					const queueExists = await new Promise((resolve, reject) => {
-						db.get(
-							`SELECT * FROM queued_urls WHERE sitemap_url = ? AND url = ?`,
-							[sitemapUrl, url],
-							(err, row) => {
-								if (err) {
-									reject(err);
-								} else {
-									resolve(row);
-								}
-							}
-						);
-					});
+					const [queueExists] = await db.execute(
+						`SELECT * FROM queued_urls WHERE sitemap_url = ? AND url = ?`,
+						[sitemapUrl, url]
+					);
 
-					if (!queueExists) {
+					if (queueExists.length === 0) {
 						// Add URL to queued_urls table
-						await new Promise((resolve, reject) => {
-							db.run(
-								`INSERT INTO queued_urls (sitemap_url, url) VALUES (?, ?)`,
-								[sitemapUrl, url],
-								(err) => {
-									if (err) {
-										reject(err);
-									} else {
-										resolve();
-									}
-								}
-							);
-						});
+						await db.execute(
+							`INSERT INTO queued_urls (sitemap_url, url) VALUES (?, ?)`,
+							[sitemapUrl, url]
+						);
 					}
 				}
 			}

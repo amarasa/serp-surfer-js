@@ -51,27 +51,23 @@ export default async function handler(req, res) {
 			await delay(delayMs); // Increase delay to 3 seconds between requests
 
 			// Update the database
-			db.run(
-				`
+			const query = `
         INSERT INTO sitemaps (sitemap_url, page_title, page_url, index_status, last_scan)
-        VALUES (?, ?, ?, ?, datetime('now', '-8 hours', 'utc'))
-        ON CONFLICT(page_url) DO UPDATE SET
-          index_status=excluded.index_status,
-          last_scan=datetime('now', '-8 hours', 'utc'),
-          page_title=excluded.page_title
-      `,
-				[sitemapUrl, title, url, isIndexed ? 1 : 0],
-				(err) => {
-					if (err) {
-						console.error("Database Error:", err);
-						return res
-							.status(500)
-							.json({ error: "Failed to update database" });
-					}
-					res.status(200).json({ isIndexed });
-				}
-			);
+        VALUES (?, ?, ?, ?, NOW())
+        ON DUPLICATE KEY UPDATE
+          index_status = VALUES(index_status),
+          last_scan = NOW(),
+          page_title = VALUES(page_title)
+      `;
 
+			await db.execute(query, [
+				sitemapUrl,
+				title,
+				url,
+				isIndexed ? 1 : 0,
+			]);
+
+			res.status(200).json({ isIndexed });
 			break; // Break the loop if successful
 		} catch (error) {
 			console.error("Error checking URL indexing:", error.message);

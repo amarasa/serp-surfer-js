@@ -1,5 +1,4 @@
-// src/pages/api/queued-urls-count.js
-import db from "../../lib/database";
+const db = require("../../lib/database");
 
 export default async function handler(req, res) {
 	const { sitemapUrl } = req.query;
@@ -9,33 +8,26 @@ export default async function handler(req, res) {
 	}
 
 	try {
-		db.get(
+		const [[countRow]] = await db.execute(
 			"SELECT COUNT(*) as count FROM queued_urls WHERE sitemap_url = ?",
-			[sitemapUrl],
-			(err, row) => {
-				if (err) {
-					return res.status(500).json({ error: err.message });
-				}
-				const count = row.count;
-				if (count === 0) {
-					return res.status(200).json({ count, position: null });
-				}
-
-				db.get(
-					`SELECT COUNT(*) as position FROM queued_urls WHERE id <= (
-                        SELECT id FROM queued_urls WHERE sitemap_url = ? ORDER BY id DESC LIMIT 1
-                    )`,
-					[sitemapUrl],
-					(err, row) => {
-						if (err) {
-							return res.status(500).json({ error: err.message });
-						}
-						res.status(200).json({ count, position: row.position });
-					}
-				);
-			}
+			[sitemapUrl]
 		);
-	} catch (error) {
-		res.status(500).json({ error: error.message });
+		const count = countRow.count;
+
+		if (count === 0) {
+			return res.status(200).json({ count, position: null });
+		}
+
+		const [[positionRow]] = await db.execute(
+			`SELECT COUNT(*) as position FROM queued_urls WHERE id <= (
+        SELECT id FROM queued_urls WHERE sitemap_url = ? ORDER BY id DESC LIMIT 1
+      )`,
+			[sitemapUrl]
+		);
+
+		res.status(200).json({ count, position: positionRow.position });
+	} catch (err) {
+		console.error(err.message);
+		res.status(500).json({ error: err.message });
 	}
 }

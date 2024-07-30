@@ -1,66 +1,58 @@
-const sqlite3 = require("sqlite3").verbose();
-const fs = require("fs");
-const path = require("path");
+const mysql = require("mysql2");
+require("dotenv").config(); // Load environment variables from .env file
 
-// Define the database path using the /tmp directory in Vercel
-const dbPath = process.env.DATABASE_PATH || path.resolve("/tmp", "sitemaps.db");
-
-// Ensure the /tmp directory exists and is writable
-if (!fs.existsSync("/tmp")) {
-	fs.mkdirSync("/tmp");
-}
-
-// Create the database file if it doesn't exist
-if (!fs.existsSync(dbPath)) {
-	fs.writeFileSync(dbPath, "");
-}
-
-const db = new sqlite3.Database(dbPath, (err) => {
-	if (err) {
-		console.error("Could not open database", err.message);
-	} else {
-		console.log("Connected to database at", dbPath);
-	}
+// Create a connection pool using environment variables
+const pool = mysql.createPool({
+	host: process.env.DB_HOST,
+	user: process.env.DB_USER,
+	password: process.env.DB_PASSWORD,
+	database: process.env.DB_NAME,
+	waitForConnections: true,
+	connectionLimit: process.env.DB_CONNECTION_LIMIT || 10,
+	queueLimit: 0,
 });
 
-db.serialize(() => {
-	db.run(
-		`
-        CREATE TABLE IF NOT EXISTS sitemaps (
-            id INTEGER PRIMARY KEY,
-            sitemap_url TEXT,
-            page_title TEXT,
-            page_url TEXT UNIQUE,
-            index_status INTEGER,
-            last_scan TIMESTAMP
-        )
-    `,
-		(err) => {
-			if (err) {
-				console.error("Error creating sitemaps table:", err.message);
-			} else {
-				console.log("sitemaps table created or already exists.");
-			}
-		}
-	);
+// Use the promise version of the pool
+const db = pool.promise();
 
-	db.run(
-		`
-        CREATE TABLE IF NOT EXISTS queued_urls (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sitemap_url TEXT NOT NULL,
-            url TEXT NOT NULL,
-            UNIQUE(sitemap_url, url)
-        )
-    `,
-		(err) => {
-			if (err) {
-				console.error("Error creating queued_urls table:", err.message);
-			} else {
-				console.log("queued_urls table created or already exists.");
-			}
-		}
-	);
-});
+module.exports = db;
 
+// Schema creation
+db.execute(
+	`
+  CREATE TABLE IF NOT EXISTS sitemaps (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sitemap_url VARCHAR(255),
+    page_title VARCHAR(255),
+    page_url VARCHAR(255) UNIQUE,
+    index_status BOOLEAN,
+    last_scan TIMESTAMP
+  )
+`
+)
+	.then(() => {
+		console.log("sitemaps table created or already exists.");
+	})
+	.catch((err) => {
+		console.error("Error creating sitemaps table:", err.message);
+	});
+
+db.execute(
+	`
+  CREATE TABLE IF NOT EXISTS queued_urls (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sitemap_url VARCHAR(255) NOT NULL,
+    url VARCHAR(255) NOT NULL,
+    UNIQUE(sitemap_url, url)
+  )
+`
+)
+	.then(() => {
+		console.log("queued_urls table created or already exists.");
+	})
+	.catch((err) => {
+		console.error("Error creating queued_urls table:", err.message);
+	});
+
+// Export the promise pool for use in other files
 module.exports = db;

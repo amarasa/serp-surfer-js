@@ -1,5 +1,4 @@
-// src/pages/api/queued-urls.js
-import db from "../../lib/database";
+const db = require("../../lib/database");
 
 export default async function handler(req, res) {
 	const { sitemapUrl } = req.query;
@@ -9,17 +8,13 @@ export default async function handler(req, res) {
 	}
 
 	try {
-		db.all(
+		const [rows] = await db.execute(
 			"SELECT * FROM sitemaps WHERE sitemap_url = ?",
-			[sitemapUrl],
-			(err, rows) => {
-				if (err) {
-					return res.status(500).json({ error: err.message });
-				}
-				res.status(200).json({ data: rows });
-			}
+			[sitemapUrl]
 		);
-	} catch (error) {
-		res.status(500).json({ error: error.message });
+		res.status(200).json({ data: rows });
+	} catch (err) {
+		console.error(err.message);
+		res.status(500).json({ error: err.message });
 	}
 }
