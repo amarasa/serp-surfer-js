@@ -94,7 +94,7 @@ const processQueue = async () => {
 			console.error("Database Error:", err.message);
 		}
 
-		await delay(60 * 1000); // Wait for 1 minute before checking again
+		await delay(30 * 1000); // Wait for 1 minute before checking again
 	}
 };
 

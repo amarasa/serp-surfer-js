@@ -152,7 +152,7 @@ export default function Home() {
 						</p>
 						<p>
 							Estimated to be completed by{" "}
-							{formatCompletionTime(processingPosition)}.
+							{formatCompletionTime(processingPosition / 2)}.
 						</p>
 					</div>
 				)}
@@ -172,7 +172,7 @@ export default function Home() {
 									<p>
 										Estimated to be completed by{" "}
 										{formatCompletionTime(
-											processingPosition
+											processingPosition / 2
 										)}
 										.
 									</p>
